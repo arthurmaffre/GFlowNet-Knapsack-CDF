@@ -1,0 +1,34 @@
+program: trainwandb.py
+command:
+  - conda
+  - run
+  - -n
+  - ECN6338
+  - python
+  - ${program}
+  - ${args}
+method: bayes
+metric:
+  goal: minimize
+  name: mean_kl_200_to_end
+parameters:
+  model_version:
+    value: v2
+  init_value_z:
+    min: 1
+    max: 9
+    distribution: uniform
+  num_epochs:
+    value: 1000
+  batch_size:
+    value: 128
+  data_path:
+    value: "data.pickle"
+  lr_main:
+    min: 0.003
+    max: 0.006
+    distribution: uniform
+  lr_z:
+    min: 0.00007
+    max: 0.0006
+    distribution: uniform
