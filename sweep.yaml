@@ -9,15 +9,14 @@ command:
   - ${args}
 method: bayes
 metric:
-  goal: minimize
   name: mean_kl_200_to_end
+  goal: minimize
 parameters:
   model_version:
-    value: v2
+    values: ["v2", "v3"]
   init_value_z:
-    min: 1
-    max: 9
-    distribution: uniform
+    min: 1.0
+    max: 12.0
   num_epochs:
     value: 1000
   batch_size:
@@ -25,10 +24,24 @@ parameters:
   data_path:
     value: "data.pickle"
   lr_main:
-    min: 0.003
-    max: 0.006
-    distribution: uniform
+    min: 0.0003
+    max: 0.02
+    distribution: log_uniform_values
   lr_z:
-    min: 0.00007
-    max: 0.0006
-    distribution: uniform
+    min: 0.001
+    max: 0.03
+    distribution: log_uniform_values
+  mom_main:
+    min: 0.05
+    max: 1.0
+  mom_z:
+    min: 0.05
+    max: 1.0
+  embedding_dim:
+    min: 16
+    max: 150
+    distribution: int_uniform
+  hidden_dim:
+    min: 150
+    max: 750
+    distribution: int_uniform

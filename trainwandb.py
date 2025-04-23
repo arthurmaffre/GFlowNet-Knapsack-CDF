@@ -37,12 +37,14 @@ from metrics.probability_distribution_on_batch import log_distribution_and_cdf
 
 from models.baseline_v1 import GFlowNet as Baseline
 from models.block_traj_v2 import GFlowNet as Block_traj
+from models.remaining_budget_v3 import GFlowNet as Dynamic_budget
 
 
 # Mapping des versions de modèles
 MODEL_MAP = {
     "v1": Baseline,
     "v2": Block_traj,
+    "v3": Dynamic_budget,
 }
 
 def train(args):
@@ -83,7 +85,7 @@ def train(args):
 
     # Instancie le modèle selon la version choisie
     ModelClass = MODEL_MAP[cfg.model_version]
-    model = ModelClass(num_items=num_items, init_value_z=cfg.init_value_z).to(device)
+    model = ModelClass(num_items=num_items, embedding_dim=cfg.embedding_dim, hidden_dim=cfg.hidden_dim, init_value_z=cfg.init_value_z).to(device)
 
     # Sépare les groupes de paramètres
     z_params = [model.z]
@@ -91,9 +93,9 @@ def train(args):
 
     # Optimiseur SGD à momentum
     optimizer = torch.optim.SGD([
-        {"params": other_params, "lr": cfg.lr_main, "momentum": 0.9},
-        {"params": z_params,        "lr": cfg.lr_z,    "momentum": 0.9},
-    ], weight_decay=1e-4)
+    {"params": other_params, "lr": cfg.lr_main, "momentum": cfg.mom_main, "weight_decay": 1e-4},
+    {"params": z_params,     "lr": cfg.lr_z,    "momentum": cfg.mom_z,    "weight_decay": 0.0},  # PAS de decay sur Z
+    ])
 
     old_max_reward = torch.tensor(0)
     kl_values = []  # Liste pour stocker les KL à partir de l'époque 200
@@ -163,19 +165,30 @@ def train(args):
         
     if kl_values:
         mean_kl = sum(kl_values) / len(kl_values)
-        wandb.log({"mean_kl_200_to_end": mean_kl})
-        print(f"Moyenne KL (époques 200 à {len(kl_values) + 199}) : {mean_kl}")
+        if mean_kl == 0 or mean_kl is None:
+            penalized_kl = 2.0  # Suppose que ta moyenne normale est 0.2, 2.0 c’est soft mais clair.
+            wandb.log({
+                "mean_kl_200_to_end": penalized_kl,
+                "kl_zero": True
+            })
+        else:
+            wandb.log({"mean_kl_200_to_end": mean_kl})
+            print(f"Moyenne KL (époques 200 à {len(kl_values) + 199}) : {mean_kl}")
 
     wandb.finish()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train GFlowNet knapsack with wandb + SGD")
-    parser.add_argument("--model_version", choices=list(MODEL_MAP.keys()), default="v2")
+    parser.add_argument("--model_version", choices=list(MODEL_MAP.keys()), default="v3")
     parser.add_argument("--data_path",    type=str,   default="data.pickle")
     parser.add_argument("--batch_size",   type=int,   default=128)
     parser.add_argument("--num_epochs",   type=int,   default=400)
     parser.add_argument("--lr_main",      type=float, default=2e-3)
     parser.add_argument("--lr_z",         type=float, default=4e-4)
+    parser.add_argument("--embedding_dim",         type=int, default=150)
+    parser.add_argument("--hidden_dim",         type=int, default=360)
     parser.add_argument("--init_value_z", type=float, default=12)
+    parser.add_argument("--mom_main", type=float, default=0.9)
+    parser.add_argument("--mom_z", type=float, default=0.9)
     args = parser.parse_args()
     train(args)
