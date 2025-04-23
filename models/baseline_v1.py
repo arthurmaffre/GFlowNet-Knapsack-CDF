@@ -51,7 +51,7 @@ class GFlowNet(nn.Module):
         self.fc5   = nn.Linear(hidden_dim // 8, 1)
 
         # Paramètre appris pour la partition function Z
-        self.z     = nn.Parameter(torch.tensor(init_value_z, dtype=torch.float32))
+        self.log_z     = nn.Parameter(torch.tensor(init_value_z, dtype=torch.float32))
 
     def forward(self,
                 selected: torch.Tensor,
@@ -170,7 +170,7 @@ class GFlowNet(nn.Module):
         Returns:
             loss : scalar
         """
-        z_param = self.z
+        z_param = self.log_z
         log_z = z_param.unsqueeze(0)
 
         # log de la reward(+eps)

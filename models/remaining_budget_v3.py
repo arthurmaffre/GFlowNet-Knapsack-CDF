@@ -1,7 +1,8 @@
+from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch import Tensor
 
 
 
@@ -27,121 +28,117 @@ class GFlowNet(nn.Module):
         - Le forward du modèle prendra en entrée ce `remaining_budget` actualisé pour améliorer
         la qualité des probabilités d'actions calculées.
 """
-    def __init__(self,
-                 num_items: int,
-                 embedding_dim: int = 150,
-                 hidden_dim: int = 360,
-                 init_value_z: float = 12):
+    def __init__(
+        self,
+        num_items: int,
+        embedding_dim: int = 150,
+        hidden_dim: int = 360,
+        init_value_z: float = 12.0,
+    ) -> None:
         super().__init__()
-        self.num_items     = num_items
-        self.embedding_dim = embedding_dim
-        self.hidden_dim    = hidden_dim
 
-        # Embeddings linéaires
-        self.selected_embedding = nn.Linear(num_items, embedding_dim)
-        self.budget_embedding   = nn.Linear(1, embedding_dim)
-        self.u_embedding        = nn.Linear(num_items, embedding_dim)
-        self.t_embedding        = nn.Linear(num_items, embedding_dim)
+        self.num_items = num_items
+        self.embed_sel = nn.Linear(num_items, embedding_dim)   # x ∈ {-1,1}ⁿ
+        self.embed_B   = nn.Linear(1,           embedding_dim) # remaining budget
+        self.embed_u   = nn.Linear(num_items,   embedding_dim) # utilities
+        self.embed_t   = nn.Linear(num_items,   embedding_dim) # prices
 
-        # Couches cachées dynamiques
-        self.fc1   = nn.Linear(4 * embedding_dim, hidden_dim)
-        self.norm1 = nn.LayerNorm(hidden_dim)
+        # 4-layer MLP : d → d → d/2 → d/4 → d/8 → 1
+        dims = [4 * embedding_dim, hidden_dim,
+                hidden_dim // 2, hidden_dim // 4, hidden_dim // 8]
+        mlp = []
+        for d_in, d_out in zip(dims[:-1], dims[1:]):
+            mlp += [nn.Linear(d_in, d_out), nn.LayerNorm(d_out), nn.ReLU()]
+        self.mlp_stack = nn.ModuleList(mlp)
+        self.head      = nn.Linear(dims[-1], 1)  # produces *logit*
 
-        self.fc2   = nn.Linear(hidden_dim, hidden_dim // 2)
-        self.norm2 = nn.LayerNorm(hidden_dim // 2)
+        # log-partition parameter log Z  (learned scalar)
+        self.log_z = nn.Parameter(torch.tensor(init_value_z, dtype=torch.float32))
 
-        self.fc3   = nn.Linear(hidden_dim // 2, hidden_dim // 4)
-        self.norm3 = nn.LayerNorm(hidden_dim // 4)
+        # sane init
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                nn.init.zeros_(m.bias)
 
-        self.fc4   = nn.Linear(hidden_dim // 4, hidden_dim // 8)
-        self.norm4 = nn.LayerNorm(hidden_dim // 8)
+    # ------------------------------------------------------------------
+    # FORWARD  (pure scorer – no sampling, keeps gradients clean)
+    # ------------------------------------------------------------------
+    def forward(
+        self,
+        selected: Tensor,          # (B, n)  values in {-1, 1}
+        remaining_B: Tensor,       # (B, 1)
+        u: Tensor,                 # (B, n)
+        t: Tensor,                 # (B, n)
+    ) -> Tensor:                   # (B, 1)  Bernoulli probability
+        sel_emb = F.relu(self.embed_sel(selected))
+        B_emb   = F.relu(self.embed_B(remaining_B))
+        u_emb   = F.relu(self.embed_u(u))
+        t_emb   = F.relu(self.embed_t(t))
 
-        # Couche de sortie log-probs
-        self.fc5   = nn.Linear(hidden_dim // 8, 1)
+        h = torch.cat((sel_emb, B_emb, u_emb, t_emb), dim=1)
+        for layer in self.mlp_stack:
+            h = layer(h)           # ReLU already in stack
+        logits = self.head(h)
+        return torch.sigmoid(logits)  # Bernoulli *p*
 
-        # Paramètre appris pour la partition function Z
-        self.z     = nn.Parameter(torch.tensor(init_value_z, dtype=torch.float32))
-
-    def forward(self,
-                selected: torch.Tensor,
-                budget:   torch.Tensor,
-                u:        torch.Tensor,
-                t:        torch.Tensor) -> torch.Tensor:
+    # ------------------------------------------------------------------
+    # TRAJECTORY GENERATION  (stochastic, differentiable)
+    # ------------------------------------------------------------------
+    def generate_trajectories(
+        self,
+        B_init: Tensor,            # (B, 1)
+        u: Tensor,                 # (B, n)
+        t: Tensor,                 # (B, n)
+        batch_size: int,
+        num_items: int,
+        device
+    ) -> tuple[Tensor, Tensor]:
         """
-        Forward pass pour calculer la probabilité d'action
+        Sample a batch of trajectories and accumulate their log-probabilities.
 
-        Args:
-            selected : Tensor(batch_size, num_items), -1 ou 1
-            budget   : Tensor(batch_size, 1)
-            u        : Tensor(batch_size, num_items)
-            t        : Tensor(batch_size, num_items)
-
-        Returns:
-            action_probs : Tensor(batch_size, 1), probabilité (sigmoid)
-        """
-        # Embedding + activation
-        selected_emb = F.relu(self.selected_embedding(selected))
-        budget_emb   = F.relu(self.budget_embedding(budget))
-        u_emb        = F.relu(self.u_embedding(u))
-        t_emb        = F.relu(self.t_embedding(t))
-
-        # Concaténation des embeddings\        
-        combined = torch.cat([selected_emb, budget_emb, u_emb, t_emb], dim=1)
-
-        # Couches cachées avec normalisation
-        x = F.relu(self.norm1(self.fc1(combined)))
-        x = F.relu(self.norm2(self.fc2(x)))
-        x = F.relu(self.norm3(self.fc3(x)))
-        x = F.relu(self.norm4(self.fc4(x)))
-
-        # Logits et sigmoid
-        action_scores = self.fc5(x)
-        return torch.sigmoid(action_scores)
-
-    def generate_trajectories(self,
-                              Budget: torch.Tensor,
-                              u:      torch.Tensor,
-                              t:      torch.Tensor,
-                              batch_size: int,
-                              num_items: int,
-                              device: torch.device) -> (torch.Tensor, torch.Tensor):
-        """
-        Génère un batch de trajectoires en choisissant séquentiellement chaque item
-
-        Returns:
-            sequence_log_prob : Tensor(batch_size,), log P(tau)
-            selected          : Tensor(batch_size, num_items), décisions -1/1
+        Returns
+        -------
+        sequence_logp : Tensor, shape (B,)
+            log P_θ(τ) for each generated trajectory.
+        selected      : Tensor, shape (B, n)
+            Final decision vectors in {-1, 1}.
         """
         
+        device = u.device
 
-        selected = torch.zeros(batch_size, num_items, device=device)
-        sequence_log_prob = torch.zeros(batch_size, device=device)
-        remaining_budget = Budget.clone()  # (batch_size, 1)
+        # static embeddings (utilities, prices) are the same at every step
+        u_emb_fixed = F.relu(self.embed_u(u))
+        t_emb_fixed = F.relu(self.embed_t(t))
 
-        # Boucle sur les items
+        selected = torch.full((batch_size, num_items), -1.0, device=device)
+        logp_acc = torch.zeros(batch_size, device=device)
+        remaining_B = B_init.clone()                # mutable (B,1)
+
         for i in range(num_items):
-            # Calcul de la probabilité de prendre l'item i
-            action_prob = self.forward(selected, remaining_budget, u, t)
-            dist        = torch.distributions.Bernoulli(probs=action_prob)
+            # ---- forward (uses current decisions) --------------------------
+            sel_emb = F.relu(self.embed_sel(selected))
+            B_emb   = F.relu(self.embed_B(remaining_B))
+            h = torch.cat((sel_emb, B_emb, u_emb_fixed, t_emb_fixed), dim=1)
+            for layer in self.mlp_stack:
+                h = layer(h)
+            probs = torch.sigmoid(self.head(h)).squeeze(-1)
 
-            mask = (remaining_budget >= t[:, i].unsqueeze(-1)).float()  # (batch_size, 1)
-            
+            feasible = remaining_B.squeeze(1) >= t[:, i]
+            probs = probs * feasible.float()
+            dist  = torch.distributions.Bernoulli(probs=probs.clamp(1e-8, 1-1e-8))
 
-            # Échantillonnage et log-prob
-            action_pot = dist.sample()                        # 0/1
+            act = dist.sample()                       # 0 / 1
+            logp_acc = logp_acc + dist.log_prob(act)
 
-            action = action_pot * mask
-            logp   = dist.log_prob(action).squeeze(-1)    # (batch_size,)
+            # ---- safe update (out-of-place) --------------------------------
+            new_selected = selected.clone()           # version bump → autograd safe
+            new_selected[:, i] = act * 2.0 - 1.0      # map {0,1}→{-1,1}
+            selected = new_selected
 
-            # Update selected: 1 -> +1, 0 -> -1
-            selected = selected.clone()
-            selected[:, i] = torch.where(action.squeeze()==1, 1.0, -1.0)
-            sequence_log_prob = sequence_log_prob + logp * mask.squeeze(-1)
+            remaining_B = remaining_B - (act * t[:, i]).unsqueeze(1)
 
-            # Mise à jour du budget restant
-            remaining_budget = remaining_budget - t[:, i].unsqueeze(-1) * action
-
-        return sequence_log_prob, selected
+        return logp_acc, selected
 
     def compute_trajectory_log_prob_batch(self,
                                           trajectories: torch.Tensor,
@@ -187,7 +184,7 @@ class GFlowNet(nn.Module):
         Returns:
             loss : scalar
         """
-        z_param = self.z
+        z_param = self.log_z
         log_z = z_param.unsqueeze(0)
 
         # log de la reward(+eps)
@@ -196,9 +193,4 @@ class GFlowNet(nn.Module):
 
         diff  = torch.clamp(log_z + sequence_log_prob - log_r,
                             min=-100.0, max=100.0)
-        return (diff ** 2).mean()
-
-
-# models/block_traj_v2.py
-import torch
-from models.baseline_v1 import GFlowNet as BaseGFlowNet
+        return diff.square().mean()

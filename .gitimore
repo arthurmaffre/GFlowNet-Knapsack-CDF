@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environnements virtuels
+env/
+venv/
+.venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE / éditeurs
+.vscode/
+.idea/
+
+# Fichiers système macOS
+.DS_Store
+
+# Logs / autres fichiers inutiles
+*.log
