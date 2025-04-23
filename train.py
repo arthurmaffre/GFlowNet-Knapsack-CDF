@@ -317,7 +317,7 @@ if __name__ == "__main__":
 
     # Core hyper‑parameters -------------------------------------------------------------
     parser.add_argument("--model_version", choices=list(MODEL_MAP), default="v1", help="Model variant to train (v1 or v2 or v3)")
-    parser.add_argument("--data_path", type=str, default="data.pickle", help="Pickle file with u, t, B")
+    parser.add_argument("--data_path", type=str, default="data/data.pickle", help="Pickle file with u, t, B")
     parser.add_argument("--batch_size", type=int, default=128, help="Batch size")
     parser.add_argument("--num_epochs", type=int, default=400, help="Number of training epochs")
 

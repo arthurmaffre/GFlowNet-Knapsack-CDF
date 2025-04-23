@@ -1,0 +1,15 @@
+{"time":"2025-04-23T16:43:24.725716-04:00","level":"INFO","msg":"stream: starting","core version":"0.19.9","symlink path":"/Users/arthur/Library/Mobile Documents/com~apple~CloudDocs/Cours/ECN6338/Devoir à rendre/Remise/wandb/run-20250423_164324-zqccxpm3/logs/debug-core.log"}
+{"time":"2025-04-23T16:43:24.891948-04:00","level":"INFO","msg":"created new stream","id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:24.891979-04:00","level":"INFO","msg":"stream: started","id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:24.891988-04:00","level":"INFO","msg":"writer: Do: started","stream_id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:24.892009-04:00","level":"INFO","msg":"sender: started","stream_id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:24.891997-04:00","level":"INFO","msg":"handler: started","stream_id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:25.135343-04:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-04-23T16:43:28.257591-04:00","level":"INFO","msg":"stream: closing","id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:28.257628-04:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-04-23T16:43:28.257643-04:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-04-23T16:43:28.697844-04:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-04-23T16:43:28.811059-04:00","level":"INFO","msg":"sender: closed","stream_id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:28.81105-04:00","level":"INFO","msg":"handler: closed","stream_id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:28.811054-04:00","level":"INFO","msg":"writer: Close: closed","stream_id":"zqccxpm3"}
+{"time":"2025-04-23T16:43:28.811475-04:00","level":"INFO","msg":"stream: closed","id":"zqccxpm3"}

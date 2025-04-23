@@ -1,0 +1,16 @@
+{
+  "os":  "macOS-15.4.1-arm64-arm-64bit-Mach-O",
+  "python":  "CPython 3.13.2",
+  "startedAt":  "2025-04-23T20:42:22.107391Z",
+  "program":  "/Users/arthur/Library/Mobile Documents/com~apple~CloudDocs/Cours/ECN6338/Devoir à rendre/Remise/train.py",
+  "codePath":  "train.py",
+  "git":  {
+    "remote":  "https://github.com/arthurmaffre/GFlowNet-Knapsack-CDF.git",
+    "commit":  "00a0d8f11c133afa838433b2513d557833d2018b"
+  },
+  "email":  "maffrearthur@gmail.com",
+  "root":  "/Users/arthur/Library/Mobile Documents/com~apple~CloudDocs/Cours/ECN6338/Devoir à rendre/Remise",
+  "host":  "d6:c9:1f:2a:26:f4",
+  "executable":  "/Users/arthur/miniconda3/envs/ECN6338/bin/python3",
+  "codePathLocal":  "train.py"
+}
