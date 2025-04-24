@@ -73,7 +73,7 @@ For *n = 15* the global optimum is typically found after **≈ 2 600** sampled
 ### 📄 Full Report
 
 For a detailed analysis of the experiments, including additional figures and discussion:
-👉 **[Read the full report here]([docs/results.md](https://wandb.ai/arthurmaffre-alone/Remise/reports/GFlowNet-Knapsack-0-1-Bayesian-Search-Results--VmlldzoxMjQ0Mzg3OQ))**
+👉 **[Read the full report here](https://wandb.ai/arthurmaffre-alone/Remise/reports/GFlowNet-Knapsack-0-1-Bayesian-Search-Results--VmlldzoxMjQ0Mzg3OQ)**
 
 ### 📊 Hyperparameter Sweep Results
 
