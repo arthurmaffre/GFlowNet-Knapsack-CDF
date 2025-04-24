@@ -27,24 +27,27 @@ For *n = 15* the global optimum is typically found after **≈ 2 600** sampled
 
 ```
 .
-├── data/                       # Pickled toy instance  (u, t, B)
+├── assets/                    # Images for README (graphs, results)
+│   ├── Multi.png              # Hyperparameter sweep & CDF plots
+│   └── ...                    # (other visuals if needed)
+├── data/                      # Pickled toy instance (u, t, B)
 │   └── data.pickle
 ├── env/
-│   └── environment.yaml        # Conda definition  (Python 3.13.2)
+│   └── environment.yaml       # Conda definition (Python 3.13.2)
 ├── metrics/
 │   └── probability_distribution_on_batch.py
-├── models/                     # Three GFlowNet variants
-│   ├── baseline_v1.py          # v1 – budget‑blind
-│   ├── block_traj_v2.py        # v2 – online blocking
-│   └── remaining_budget_v3.py  # v3 – dynamic budget  ✅ best
+├── models/                    # Three GFlowNet variants
+│   ├── baseline_v1.py         # v1 – budget-blind
+│   ├── block_traj_v2.py       # v2 – online blocking
+│   └── remaining_budget_v3.py # v3 – dynamic budget ✅ best
 ├── reward/
-│   ├── analytical_reward.py    # Brute‑force oracle (≤20 items)
-│   └── reward.py               # Batch reward computation
+│   ├── analytical_reward.py   # Brute-force oracle (≤20 items)
+│   └── reward.py              # Batch reward computation
 ├── sweep/
-│   └── sweep.yaml              # W&B Bayesian optimisation config
-├── train.py                    # 🏁 Entry‑point
-├── requirements.txt            # pip alternative to Conda
-└── README.md                   # ← you are here
+│   └── sweep.yaml             # W&B Bayesian optimisation config
+├── train.py                   # 🏁 Entry-point
+├── requirements.txt           # pip alternative to Conda
+└── README.md                  # ← you are here
 ```
 
 *(A local `wandb/` directory is created at run‑time; add it to `.gitignore`.)*
@@ -54,11 +57,11 @@ For *n = 15* the global optimum is typically found after **≈ 2 600** sampled
 ## 🔬 Algorithm in a Nutshell
 1. **State** = `(-1, 0, 1)` code for each item + **remaining budget** (v3).  
 2. **Policy** `π_θ(a | s)` queried for 128 states **in parallel**.  
-3. **Trajectory‑Balance loss**  
+3. **Collapsed Trajectory-Balance**  
 
-   \[
-   \mathcal L(τ)=\bigl[\log P_{θ}(τ)+\log Z-\log R(τ)\bigr]^2
-   \]
+   $$
+   \mathcal{L}(\tau) = \left( \log P_\theta(\tau) + \log Z_\theta - \log R(\tau) \right)^2
+   $$
 
    with a learnable scalar `log Z`.  
 4. Gradient step → discard batch → sample a fresh one. Eventually every leaf is visited stochastically.
@@ -67,7 +70,19 @@ For *n = 15* the global optimum is typically found after **≈ 2 600** sampled
 
 ## 📈 Key Results
 
+### 📄 Full Report
 
+For a detailed analysis of the experiments, including additional figures and discussion:
+👉 **[Read the full report here]([docs/results.md](https://wandb.ai/arthurmaffre-alone/Remise/reports/GFlowNet-Knapsack-0-1-Bayesian-Search-Results--VmlldzoxMjQ0Mzg3OQ))**
+
+### 📊 Hyperparameter Sweep Results
+
+![Hyperparameter and Reward Analysis](assets/Multi.png)
+
+The following figure shows:
+- The **parallel coordinates** of hyperparameter influence on KL divergence.
+- **Max reward** evolution across different runs.
+- **CDF alignment** between sampled and analytical distributions.
 
 _Interactive dashboards on Weights & Biases project **gflownet‑knapsack**._
 
