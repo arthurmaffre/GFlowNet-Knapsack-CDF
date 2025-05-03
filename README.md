@@ -5,9 +5,58 @@ _Efficient, probabilistic 0‑1 Knapsack optimisation for Economists, OR folks a
 ---
 
 ## 🚀 One‑Minute Pitch
-The classic **0‑1 Knapsack** has 2^n feasible baskets.  
-A **Generative Flow Network (GFlowNet)** learns a *probability distribution* over **all** baskets so that higher‑value sets are sampled more often.  
-For *n = 15* the global optimum is typically found after **≈ 2 600** sampled trajectories (20 epochs × 128‑batch) instead of traversing all 32 768 leaves.
+
+The classic **0‑1 Knapsack** problem asks:  
+*Which items do I pick to maximize total value without exceeding my budget?*
+
+Every choice is discrete—you either take an item (`1`) or skip it (`0`).  
+This simple rule creates sequences like `0 1 0 1 …` across multiple items,  
+leading to **2ⁿ possible combinations**—an exponential complexity nightmare.
+
+Rather than brute-forcing every possibility,  
+a **Generative Flow Network (GFlowNet)** learns a **probability distribution**  
+over the entire space of combinations, guiding you probabilistically toward the best solutions.
+
+### 🔧 How does it work?
+
+The GFlowNet looks at four simple things at each decision step:
+
+1. **Item utilities** *(how valuable is each item?)*  
+2. **Item prices** *(what does each item cost?)*  
+3. **Remaining budget** *(how much money is left?)*  
+4. **Items already picked or skipped**
+
+It outputs exactly **one number**—a probability between 0 and 1.  
+You take this probability and **flip a loaded coin**: pick or skip the item, building up a decision sequence step by step.  
+You repeat this process **128 times in parallel**, so the model quickly learns where the best solutions lie.
+
+### 🧠 Where does Z come in?
+
+Each sequence you create has a **reward** (e.g., total value in utility). But rewards are arbitrary numbers, not probabilities—they don’t sum to 1 naturally.
+
+To fix this, we introduce **Z**, a learnable parameter:
+
+$$P(\text{sequence}) = \frac{\text{reward(sequence)}}{Z}$$
+
+**Z** converts raw rewards into a proper probability distribution.  
+It acts like a **currency converter**—turning arbitrary reward values into probabilities.  
+The model continuously adjusts **Z** during training to ensure that probabilities match their rewards proportionally.  
+
+Put simply:  
+- High-reward solutions → higher probabilities  
+- Lower-reward solutions → lower probabilities  
+- Total probability always sums neatly to 1, thanks to Z
+
+With this smart, self-balancing system,  
+for *n = 15* items, the global optimum usually emerges after about **5,120 samples**, instead of naively checking **all 32,768 possibilities**.
+
+---
+
+### 💥 Summary
+
+The GFlowNet doesn’t just search blindly —  
+it **learns to guide probability flow** toward high-value solutions,  
+turning a combinatorial explosion into an efficient, scalable process.
 
 ---
 
@@ -15,7 +64,7 @@ For *n = 15* the global optimum is typically found after **≈ 2 600** sampled
 
 | You are… | Read **first** | Why this repo is useful |
 |----------|---------------|-------------------------|
-| **🎓 Economist** (no heavy maths / AI) | `0_A-ECON.md` | Study the *whole* welfare distribution, not a single optimum |
+| **🎓 Economist** (no heavy maths / AI) | `0_A-ECON.md` | The model learns to guide sampling toward the best solutions, without needing to explore everything exhaustively |
 | **🛠 OR / Optimisation** | `0_B-OR.md` | Think *Monte‑Carlo DP × Normalising Flows* – sample instead of enumerate |
 | **🤖 ML / AI Engineer** | `0_C-ML.md` | Trajectory‑Balance loss, GPU batching, W&B sweeps, three state encodings |
 
